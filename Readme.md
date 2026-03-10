@@ -55,7 +55,9 @@ git clone https://github.com/pulp-bio/DeepMF-mini.git
 Once the repo has been cloned, run the following command to set up the environment:
 
 ```bash
-conda env create -f environment.yml
+conda env create -f environment_windows.yml
+or 
+conda env create -f environment_linux.yml
 ```
 
 To activate the environment, run:
@@ -112,7 +114,7 @@ If everything is set up correctly, the high-level scripts should be ready to run
   Model 2: R_inear_f1
   ```
 - `device`: str, the device where you want to train the model
-- `model`: str, the network that you want to train. Beware that as of right now, there is only a restricted set of networks that are available as defined in the [DeepMF.py](./DeepMF.py) file.
+- `model`: str, the network that you want to train. Beware that as of right now, there is only a restricted set of networks that are available as defined in the [DeepMF.py](./Code/DeepMF.py) file.
 
 
 **Examples**
