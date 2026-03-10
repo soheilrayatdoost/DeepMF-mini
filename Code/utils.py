@@ -169,13 +169,13 @@ def get_LOO_sets(data_loading_dir, id):
     train_folder_paths, valid_folder_path = LOO_folders_str(data_loading_dir, id) # S1, S2 - S3 / R1, R2 - R3
 
     for folder_path in train_folder_paths:
-        items = sorted(os.listdir(folder_path), key=len) # R2, R3 / recordings
+        items = sorted(os.listdir(folder_path), key=lambda x: int(''.join(filter(str.isdigit, x))) if any(c.isdigit() for c in x) else 0) # R2, R3 / recordings — sorted numerically
         subfolders_paths = [os.path.join(folder_path, item) for item in items if os.path.isdir(os.path.join(folder_path, item))] # R1, R2, R3 / None
 
         if subfolders_paths: # Subject LOO
             for subfolder_path in subfolders_paths: # R1, R2, R3...
                 # Recording files
-                items = sorted(os.listdir(subfolder_path), key=len)
+                items = sorted(os.listdir(subfolder_path), key=lambda x: int(''.join(filter(str.isdigit, x))) if any(c.isdigit() for c in x) else 0)
                 items.remove('gt.mat') # recordings
                 train_files = append_path(items, subfolder_path)
                 # GT R-Peaks
@@ -193,12 +193,12 @@ def get_LOO_sets(data_loading_dir, id):
             train_set.append((train_files, gt_peaks))
 
     # Validation files
-    items = sorted(os.listdir(valid_folder_path), key=len) # R1, R2, R3 / recordings
+    items = sorted(os.listdir(valid_folder_path), key=lambda x: int(''.join(filter(str.isdigit, x))) if any(c.isdigit() for c in x) else 0) # R1, R2, R3 / recordings — sorted numerically
     subfolders_paths = [os.path.join(valid_folder_path, item) for item in items if os.path.isdir(os.path.join(valid_folder_path, item))] # R2, R3 / None
 
     if subfolders_paths: # Subject LOO
             for subfolder_path in subfolders_paths: # R1, R2, R3...
-                items = sorted(os.listdir(subfolder_path), key=len)
+                items = sorted(os.listdir(subfolder_path), key=lambda x: int(''.join(filter(str.isdigit, x))) if any(c.isdigit() for c in x) else 0)
                 items.remove('gt.mat')
                 val_files = append_path(items, subfolder_path)
                 gt_data = sio.loadmat(os.path.join(subfolder_path, 'gt.mat')) # Load .mat file
