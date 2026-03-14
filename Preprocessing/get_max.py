@@ -16,22 +16,23 @@ import numpy as np
 def get_max(signal, aprox_max):
     """Refine an approximate R-peak location to the true maximum.
 
-    Searches in a ±5 sample neighbourhood around *aprox_max* and returns the
-    index of the actual maximum within that window.
+    Searches within the provided signal segment around *aprox_max* and returns
+    the index of the actual maximum within that window.
 
     Parameters
     ----------
     signal : array-like
         1-D signal segment (typically a short window around the approximate peak).
     aprox_max : int
-        0-based index of the approximate peak location in the *full* signal.
+        0-based index of the approximate peak location within the provided
+        ``signal`` window.
 
     Returns
     -------
     int
-        0-based index of the true maximum in the full signal.
+        0-based index of the true maximum within the provided ``signal`` window.
     """
     signal = np.asarray(signal)
     max_location = int(np.argmax(signal))  # 0-based index within the window
-    diff = max_location - 5               # window was centred at position 5
-    return aprox_max + diff
+    diff = max_location - int(aprox_max)   # refine relative to approximate index
+    return int(aprox_max) + diff

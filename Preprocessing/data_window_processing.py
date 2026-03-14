@@ -100,8 +100,8 @@ def _apply_bandpass(data_2d, sfreq, l_freq, h_freq):
 def _apply_bandpass_causal(data_2d, sfreq, l_freq, h_freq):
     """Causal (one-pass) bandpass filter via MNE – operates on (n_samples, n_ch).
 
-    MNE's ``filter_data`` with ``phase='minimum'`` applies the filter causally,
-    analogous to MATLAB's ``filter()`` function.
+    Uses MNE's ``filter_data`` with ``phase='forward'`` to implement a causal
+    one-pass IIR filter, analogous to MATLAB's ``filter()`` function.
     """
     filtered = mne.filter.filter_data(
         data_2d.T.copy(),
@@ -110,21 +110,21 @@ def _apply_bandpass_causal(data_2d, sfreq, l_freq, h_freq):
         h_freq=h_freq,
         method='iir',
         iir_params=_IIR_BP,
-        phase='minimum',
+        phase='forward',
         verbose=False,
     )
     return filtered.T
 
 
 def _apply_notch_causal(data_2d, sfreq, freq=50.0):
-    """Causal notch filter via MNE – analogous to MATLAB's ``filter()``."""
+    """Causal (one-pass) notch filter via MNE – analogous to MATLAB's ``filter()``."""
     filtered = mne.filter.notch_filter(
         data_2d.T.copy(),
         Fs=sfreq,
         freqs=freq,
         method='iir',
         iir_params=_IIR_NOTCH,
-        phase='minimum',
+        phase='forward',
         verbose=False,
     )
     return filtered.T
@@ -174,7 +174,7 @@ def main():
     chest_lead_i = chest_lead_i[transient_response:]
 
     # Normalise (z-score)
-    chest_lead_i = (chest_lead_i - chest_lead_i.mean()) / chest_lead_i.std()
+    chest_lead_i = (chest_lead_i - chest_lead_i.mean()) / chest_lead_i.std(ddof=1)
 
     # Downsample to DOWN_FS
     chest_lead_i = chest_lead_i[::int(FS / DOWN_FS)]
@@ -190,12 +190,8 @@ def main():
     # Refine each peak to the true local maximum (±5 samples)
     chest_lead_i_ones = np.zeros(len(chest_lead_i))
     for j, pk in enumerate(chest_peaks):
-        lo = max(0, pk - 5)
-        hi = min(len(chest_lead_i) - 1, pk + 5)
-        window = chest_lead_i[lo: hi + 1]
-        # Compute refined peak index relative to the local window and map back to global index
-        refined_local = get_max(window, pk - lo)
-        refined_global = lo + refined_local
+        # Let get_max build an appropriate ±5-sample window around the global index
+        refined_global = get_max(chest_lead_i, pk)
         chest_peaks[j] = int(np.clip(refined_global, 0, len(chest_lead_i) - 1))
         p = chest_peaks[j]
         chest_lead_i_ones[max(0, p - 1): p + 2] = 1.0

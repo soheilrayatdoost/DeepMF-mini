@@ -115,36 +115,40 @@ def convert_data(file_including_path, voltage_scale, timestamp_scale):
     n_packets = len(payload) // BT_PCK_SIZE
     ADS = payload[: n_packets * BT_PCK_SIZE].reshape(n_packets, BT_PCK_SIZE)
 
-    def _decode_channel_24bit(b0, b1, b2):
-        """Reconstruct a signed 24-bit ADC value stored as 3 bytes (MSB first),
-        left-shifted by 8 to fill a 32-bit integer (matching MATLAB typecast)."""
-        raw_u32 = (int(b0) << 24) | (int(b1) << 16) | (int(b2) << 8)
-        return struct.unpack('>i', struct.pack('>I', raw_u32))[0]
-
-    def _decode_acc_16bit(b0, b1):
-        """Reconstruct a signed 16-bit accelerometer value stored MSB-first,
-        left-shifted into the top 16 bits of a 32-bit integer."""
-        raw_u32 = (int(b0) << 24) | (int(b1) << 16)
-        return struct.unpack('>i', struct.pack('>I', raw_u32))[0]
-
     n = ADS.shape[0]
-    channels = np.zeros((n, 8), dtype=np.int32)
-    acc = np.zeros((n, 3), dtype=np.int32)
 
-    # Channel byte offsets (0-based): ch1=0,1,2  ch2=3,4,5  ... ch8=21,22,23
-    for ch_idx in range(8):
-        base = ch_idx * 3
-        for i in range(n):
-            channels[i, ch_idx] = _decode_channel_24bit(
-                ADS[i, base], ADS[i, base + 1], ADS[i, base + 2]
-            )
+    # Vectorized decoding of 24-bit ExG channels and 16-bit accelerometer data.
+    # Work in uint32 for bit operations, then reinterpret as int32 to get signed values.
+    ads_u32 = ADS.astype(np.uint32, copy=False)
 
-    for i in range(n):
-        acc[i, 0] = _decode_acc_16bit(ADS[i, 24], ADS[i, 25])
-        acc[i, 1] = _decode_acc_16bit(ADS[i, 26], ADS[i, 27])
-        acc[i, 2] = _decode_acc_16bit(ADS[i, 28], ADS[i, 29])
-        if i % 5000 == 0:
-            print(f'Processing {(i / n) * 100:.2f}%')
+    # --- ExG channels (8 channels, 3 bytes each: total 24 bytes) ---
+    # Layout per row: ch1=0,1,2  ch2=3,4,5  ... ch8=21,22,23
+    ch_bytes = ads_u32[:, 0:24].reshape(n, 8, 3)
+    ch_b0 = ch_bytes[:, :, 0]
+    ch_b1 = ch_bytes[:, :, 1]
+    ch_b2 = ch_bytes[:, :, 2]
+
+    ch_raw_u32 = (
+        (ch_b0 << 24)
+        | (ch_b1 << 16)
+        | (ch_b2 << 8)
+    ).astype(np.uint32)
+
+    # Interpret the 32-bit patterns as signed int32 (matches previous struct-based behavior).
+    channels = ch_raw_u32.view(np.int32)
+
+    # --- Accelerometer (3 axes, 2 bytes each: total 6 bytes) ---
+    # Layout per row: X=24,25  Y=26,27  Z=28,29
+    acc_bytes = ads_u32[:, 24:30].reshape(n, 3, 2)
+    acc_b0 = acc_bytes[:, :, 0]
+    acc_b1 = acc_bytes[:, :, 1]
+
+    acc_raw_u32 = (
+        (acc_b0 << 24)
+        | (acc_b1 << 16)
+    ).astype(np.uint32)
+
+    acc = acc_raw_u32.view(np.int32)
 
     # --- Gain scaling ---
     signal_gain = int(exg_data.get('SignalGain', 12))

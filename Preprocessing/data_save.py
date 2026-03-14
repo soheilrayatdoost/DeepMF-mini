@@ -93,6 +93,6 @@ def data_save(
 def _zscore(arr):
     """Z-score normalise *arr* column-wise, avoiding division by zero."""
     mean = arr.mean(axis=0)
-    std = arr.std(axis=0)
+    std = arr.std(axis=0, ddof=1)
     std[std == 0] = 1.0
     return (arr - mean) / std

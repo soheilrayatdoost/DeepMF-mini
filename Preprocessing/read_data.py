@@ -182,15 +182,37 @@ def read_trc(file_path: str) -> dict:
     signals = []
     ch_names = []
     sfreq = None
+    n_samples = None
 
     for sig in segment.analogsignals:
-        arr = np.asarray(sig).squeeze()  # (n_times,) or (n_times, n_ch)
+        # Use magnitude to get a plain NumPy array without quantities units
+        arr = sig.magnitude.squeeze()  # (n_times,) or (n_times, n_ch)
         if arr.ndim == 1:
             arr = arr[:, np.newaxis]
+
+        # Validate consistent number of samples across all signals
+        if n_samples is None:
+            n_samples = arr.shape[0]
+        elif arr.shape[0] != n_samples:
+            raise ValueError(
+                "Inconsistent signal lengths in TRC file "
+                f"({file_path!r}): expected {n_samples} samples, "
+                f"got {arr.shape[0]} for channel {sig.name!r}."
+            )
+
+        # Validate consistent sampling frequency across all signals
+        sig_sfreq = float(sig.sampling_rate.magnitude)
+        if sfreq is None:
+            sfreq = sig_sfreq
+        elif sig_sfreq != sfreq:
+            raise ValueError(
+                "Inconsistent sampling rates in TRC file "
+                f"({file_path!r}): expected {sfreq} Hz, "
+                f"got {sig_sfreq} Hz for channel {sig.name!r}."
+            )
+
         signals.append(arr)
         ch_names.extend([str(sig.name)] * arr.shape[1])
-        if sfreq is None:
-            sfreq = float(sig.sampling_rate.magnitude)
 
     if not signals:
         raise ValueError(f"No analog signals found in TRC file: {file_path}")
