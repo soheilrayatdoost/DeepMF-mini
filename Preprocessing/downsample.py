@@ -32,5 +32,11 @@ def downsample(original_array, fs, new_fs):
         Downsampled array with the same number of dimensions as *original_array*.
     """
     original_array = np.asarray(original_array)
-    jump = int(fs / new_fs)
+    ratio = fs / new_fs
+    if ratio < 1 or not float(ratio).is_integer():
+        raise ValueError(
+            "fs must be an integer multiple of new_fs and new_fs must not exceed fs; "
+            f"got fs={fs}, new_fs={new_fs} (fs/new_fs={ratio})."
+        )
+    jump = int(ratio)
     return original_array[::jump]

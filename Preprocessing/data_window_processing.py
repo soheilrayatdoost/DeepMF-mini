@@ -12,10 +12,14 @@
 
 """Main preprocessing pipeline for BioWolf in-ear ECG recordings.
 
-This script reproduces the MATLAB ``data_window_processing.m`` pipeline in
+This script closely reproduces the MATLAB ``data_window_processing.m`` pipeline in
 Python.  Filtering is performed with MNE's IIR filter routines (zero-phase
 Butterworth), R peaks are detected with :func:`scipy.signal.find_peaks`, and
-processed windows are saved as ``.mat`` files via :func:`data_save`.
+processed windows are saved as ``.mat`` files via :func:`data_save`.  The only
+intentional deviation from the original MATLAB implementation is that
+``recording_f6`` uses a 0.5–45 Hz bandpass here, whereas the MATLAB script applies
+a 0.5–30 Hz bandpass to both ``recording_f1`` and ``recording_f6`` (despite its
+comment); this script follows the documented intent rather than that MATLAB bug.
 
 Usage
 -----
@@ -189,8 +193,10 @@ def main():
         lo = max(0, pk - 5)
         hi = min(len(chest_lead_i) - 1, pk + 5)
         window = chest_lead_i[lo: hi + 1]
-        refined = get_max(window, pk)
-        chest_peaks[j] = int(np.clip(refined, 0, len(chest_lead_i) - 1))
+        # Compute refined peak index relative to the local window and map back to global index
+        refined_local = get_max(window, pk - lo)
+        refined_global = lo + refined_local
+        chest_peaks[j] = int(np.clip(refined_global, 0, len(chest_lead_i) - 1))
         p = chest_peaks[j]
         chest_lead_i_ones[max(0, p - 1): p + 2] = 1.0
 

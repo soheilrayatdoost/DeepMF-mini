@@ -157,8 +157,8 @@ def convert_data(file_including_path, voltage_scale, timestamp_scale):
     t_trigger = ADS[:, 31]
 
     skipped_samples = 1
-    exg_data['Data'] = t_data[skipped_samples + 1:, :]
-    exg_data['Trigger'] = t_trigger[skipped_samples + 1:]
+    exg_data['Data'] = t_data[skipped_samples:, :]
+    exg_data['Trigger'] = t_trigger[skipped_samples:]
     n_samples = exg_data['Data'].shape[0]
     fs = exg_data['SampleRate']
     exg_data['timestamp'] = np.arange(n_samples) / fs * tscale_factor

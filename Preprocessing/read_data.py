@@ -21,7 +21,8 @@ Supported formats
 All functions return a dictionary with at least the keys:
 
 ``data``
-    :class:`numpy.ndarray` of shape ``(n_samples, n_channels)``.
+    :class:`numpy.ndarray` of shape ``(n_samples, n_channels)`` when the
+    underlying reader is called with ``preload=True``; otherwise ``None``.
 ``sfreq``
     Sampling frequency in Hz.
 ``ch_names``
@@ -50,20 +51,37 @@ def read_edf(file_path: str, preload: bool = True) -> dict:
         Path to the ``.edf`` file.
     preload : bool
         If ``True`` (default) the data are loaded into memory immediately.
+        If ``False``, the returned ``raw`` object is set up for on-demand
+        reading and the ``data`` entry will be ``None`` to avoid loading the
+        full dataset into memory.
 
     Returns
     -------
     dict
-        Keys: ``raw``, ``data`` (n_samples × n_channels), ``sfreq``,
-        ``ch_names``.
+        Keys:
+
+        ``raw``
+            The :class:`mne.io.Raw` object.
+        ``data``
+            Array of shape ``(n_samples, n_channels)`` when ``preload=True``,
+            otherwise ``None``.
+        ``sfreq``
+            Sampling frequency in Hz.
+        ``ch_names``
+            List of channel names.
     """
     import mne
 
     raw = mne.io.read_raw_edf(file_path, preload=preload, verbose=False)
-    data, _ = raw[:]               # shape: (n_channels, n_times)
+    if preload:
+        # Only slice when preloading, as raw[:] loads the entire dataset
+        data, _ = raw[:]               # shape: (n_channels, n_times)
+        data_out = data.T              # → (n_samples, n_channels)
+    else:
+        data_out = None
     return {
         'raw': raw,
-        'data': data.T,            # → (n_samples, n_channels)
+        'data': data_out,
         'sfreq': raw.info['sfreq'],
         'ch_names': raw.ch_names,
     }
@@ -82,20 +100,37 @@ def read_vhdr(file_path: str, preload: bool = True) -> dict:
         Path to the ``.vhdr`` file.
     preload : bool
         If ``True`` (default) the data are loaded into memory immediately.
+        If ``False``, the returned ``raw`` object is set up for on-demand
+        reading and the ``data`` entry will be ``None`` to avoid loading the
+        full dataset into memory.
 
     Returns
     -------
     dict
-        Keys: ``raw``, ``data`` (n_samples × n_channels), ``sfreq``,
-        ``ch_names``.
+        Keys:
+
+        ``raw``
+            The :class:`mne.io.Raw` object.
+        ``data``
+            Array of shape ``(n_samples, n_channels)`` when ``preload=True``,
+            otherwise ``None``.
+        ``sfreq``
+            Sampling frequency in Hz.
+        ``ch_names``
+            List of channel names.
     """
     import mne
 
     raw = mne.io.read_raw_brainvision(file_path, preload=preload, verbose=False)
-    data, _ = raw[:]
+    if preload:
+        # Only slice when preloading, as raw[:] loads the entire dataset
+        data, _ = raw[:]
+        data_out = data.T
+    else:
+        data_out = None
     return {
         'raw': raw,
-        'data': data.T,
+        'data': data_out,
         'sfreq': raw.info['sfreq'],
         'ch_names': raw.ch_names,
     }
@@ -135,7 +170,15 @@ def read_trc(file_path: str) -> dict:
     block = reader.read_block(signal_group_mode='split-all', lazy=False)
 
     # Collect all analog signals from the first segment
+    if not getattr(block, "segments", None):
+        raise ValueError(f"No segments found in TRC file: {file_path}")
+
     segment = block.segments[0]
+    if getattr(segment, "analogsignals", None) is None:
+        raise ValueError(
+            f"No analog signals container present in first segment of TRC file: {file_path}"
+        )
+
     signals = []
     ch_names = []
     sfreq = None
@@ -173,7 +216,8 @@ def read_data(file_path: str, **kwargs) -> dict:
         Path to the data file.  Supported extensions: ``.edf``, ``.vhdr``,
         ``.trc``.
     **kwargs
-        Additional keyword arguments forwarded to the format-specific reader.
+        Additional keyword arguments forwarded to the format-specific reader
+        where supported (e.g., EDF/VHDR readers).
 
     Returns
     -------
@@ -196,4 +240,8 @@ def read_data(file_path: str, **kwargs) -> dict:
             f"Unsupported file extension '.{ext}'.  "
             f"Supported formats: {list(readers.keys())}"
         )
-    return readers[ext](file_path, **kwargs)
+    reader = readers[ext]
+    # Only forward keyword arguments to readers that are known to accept them.
+    if ext in ('edf', 'vhdr'):
+        return reader(file_path, **kwargs)
+    return reader(file_path)
