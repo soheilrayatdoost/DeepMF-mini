@@ -204,7 +204,7 @@ def read_trc(file_path: str) -> dict:
         sig_sfreq = float(sig.sampling_rate.magnitude)
         if sfreq is None:
             sfreq = sig_sfreq
-        elif sig_sfreq != sfreq:
+        elif not np.isclose(sig_sfreq, sfreq, rtol=1e-6, atol=1e-3):
             raise ValueError(
                 "Inconsistent sampling rates in TRC file "
                 f"({file_path!r}): expected {sfreq} Hz, "

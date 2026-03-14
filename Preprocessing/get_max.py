@@ -16,23 +16,41 @@ import numpy as np
 def get_max(signal, aprox_max):
     """Refine an approximate R-peak location to the true maximum.
 
-    Searches within the provided signal segment around *aprox_max* and returns
-    the index of the actual maximum within that window.
+    Searches within a fixed window around *aprox_max* in the provided ``signal``
+    and returns the index of the actual maximum within that window.
 
     Parameters
     ----------
     signal : array-like
-        1-D signal segment (typically a short window around the approximate peak).
+        1-D signal in which the peak is to be refined.
     aprox_max : int
-        0-based index of the approximate peak location within the provided
-        ``signal`` window.
+        0-based index of the approximate peak location within ``signal``.
 
     Returns
     -------
     int
-        0-based index of the true maximum within the provided ``signal`` window.
+        0-based index of the refined maximum within ``signal``.
     """
     signal = np.asarray(signal)
-    max_location = int(np.argmax(signal))  # 0-based index within the window
-    diff = max_location - int(aprox_max)   # refine relative to approximate index
-    return int(aprox_max) + diff
+    aprox_max = int(aprox_max)
+
+    if signal.size == 0:
+        # Degenerate case: nothing to refine; return the approximate index.
+        return aprox_max
+
+    # Define a fixed 11-sample window (±5 samples) around the approximate peak,
+    # with clipping at the signal boundaries.
+    half_window = 5
+    start_idx = max(0, aprox_max - half_window)
+    end_idx = min(signal.size, aprox_max + half_window + 1)  # end index is exclusive
+
+    window = signal[start_idx:end_idx]
+    # Index of the local maximum within the window
+    local_argmax = int(np.argmax(window))
+
+    # Position of aprox_max within the window
+    center_offset = aprox_max - start_idx
+
+    # Refined global index, matching aprox_max + (local_argmax - center_offset)
+    refined_index = aprox_max + (local_argmax - center_offset)
+    return refined_index

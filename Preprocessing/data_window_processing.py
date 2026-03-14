@@ -173,8 +173,12 @@ def main():
     transient_response = 2000
     chest_lead_i = chest_lead_i[transient_response:]
 
-    # Normalise (z-score)
-    chest_lead_i = (chest_lead_i - chest_lead_i.mean()) / chest_lead_i.std(ddof=1)
+    # Normalise (z-score) with protection against zero/non-finite std
+    chest_mean = chest_lead_i.mean()
+    chest_std = chest_lead_i.std(ddof=1)
+    if not np.isfinite(chest_std) or chest_std == 0:
+        chest_std = 1.0
+    chest_lead_i = (chest_lead_i - chest_mean) / chest_std
 
     # Downsample to DOWN_FS
     chest_lead_i = chest_lead_i[::int(FS / DOWN_FS)]
@@ -190,8 +194,13 @@ def main():
     # Refine each peak to the true local maximum (±5 samples)
     chest_lead_i_ones = np.zeros(len(chest_lead_i))
     for j, pk in enumerate(chest_peaks):
-        # Let get_max build an appropriate ±5-sample window around the global index
-        refined_global = get_max(chest_lead_i, pk)
+        # Build a bounded ±5-sample window around the detected peak (MATLAB behaviour)
+        win_start = max(int(pk) - 5, 0)
+        win_end = min(int(pk) + 5, len(chest_lead_i) - 1)
+        window = chest_lead_i[win_start:win_end + 1]
+        # get_max returns the index of the maximum within the provided window
+        local_max_idx = get_max(window, pk - win_start)
+        refined_global = win_start + int(local_max_idx)
         chest_peaks[j] = int(np.clip(refined_global, 0, len(chest_lead_i) - 1))
         p = chest_peaks[j]
         chest_lead_i_ones[max(0, p - 1): p + 2] = 1.0

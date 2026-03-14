@@ -10,7 +10,6 @@
 # and limitations under the License.
 # SPDX-License-Identifier: Apache-2.0
 
-import struct
 import warnings
 
 import numpy as np
@@ -74,11 +73,12 @@ def convert_data(file_including_path, voltage_scale, timestamp_scale):
     exg_data = {}
     end_of_data = 0
 
-    for i in range(len(A) - HEADER_SIZE):
-        if bytes(A[i: i + 8]) == MARKER:
-            data_recovered = ''.join(chr(b) for b in A[i:])
-            end_of_data = i
-            break
+    # Use efficient bytes search on the raw buffer instead of per-byte slicing
+    idx = raw.find(MARKER)
+    if idx > 0:
+        # Decode bytes to string with a 1:1 mapping, equivalent to chr(b) for each byte
+        data_recovered = raw[idx:].decode('latin1')
+        end_of_data = idx
 
     if end_of_data != 0:
         params = data_recovered.split(',')

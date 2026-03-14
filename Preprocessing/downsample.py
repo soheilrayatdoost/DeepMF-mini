@@ -33,10 +33,11 @@ def downsample(original_array, fs, new_fs):
     """
     original_array = np.asarray(original_array)
     ratio = fs / new_fs
-    if ratio < 1 or not float(ratio).is_integer():
+    rounded_ratio = int(round(ratio))
+    if ratio < 1 or not np.isclose(ratio, rounded_ratio):
         raise ValueError(
             "fs must be an integer multiple of new_fs and new_fs must not exceed fs; "
             f"got fs={fs}, new_fs={new_fs} (fs/new_fs={ratio})."
         )
-    jump = int(ratio)
+    jump = rounded_ratio
     return original_array[::jump]
