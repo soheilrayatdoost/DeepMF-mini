@@ -169,7 +169,7 @@ recording_f1 = recording_f1(transient_response + 1:end, :); % Avoid the filters 
 % recording_bandpass_zerophase = recording_bandpass_zerophase(transient_response + 1:end, :); % Avoid the filters transient response
 
 % Step III: Bandpass filter [0.5 - 45] Hz
-recording_f6 = filter(bandpass_filter_1, recording_notched); % filter
+recording_f6 = filter(bandpass_filter_5, recording_notched); % filter
 recording_f6 = recording_f6(transient_response + 1:end, :); % Avoid the filters transient response
 
 % Filter check
